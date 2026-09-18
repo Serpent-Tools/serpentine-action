@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "schedule": [
+    "before 9am on monday"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "**/*.snek"
+      ],
+      "matchStrings": [
+        "Image(?:Service)?\\(\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\"\\)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        ".github/workflows/*.yml"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+- (?<currentValue>v\\S+)"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "*"
+      ],
+      "groupName": "dependencies"
+    }
+  ]
+}

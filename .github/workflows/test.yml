@@ -1,0 +1,80 @@
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+        version:
+          - latest
+          # renovate: datasource=github-releases depName=Serpent-Tools/serpentine
+          - v0.2.2
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: setup
+        uses: ./setup
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Check serpentine is on PATH
+        run: serpentine --help
+
+      - name: Check the outputs
+        env:
+          VERSION: ${{ steps.setup.outputs.version }}
+          TOOL_PATH: ${{ steps.setup.outputs.path }}
+          BINARY: ${{ steps.setup.outputs.binary }}
+        run: |
+          if [[ -z $VERSION || $VERSION == v* ]]; then
+            echo "::error::version output should be a bare version, got '$VERSION'"
+            exit 1
+          fi
+          if [[ ! -x $BINARY ]]; then
+            echo "::error::binary output '$BINARY' is not executable"
+            exit 1
+          fi
+          if [[ $(command -v serpentine) != "$TOOL_PATH/serpentine" ]]; then
+            echo "::error::PATH resolves serpentine to $(command -v serpentine), not $TOOL_PATH"
+            exit 1
+          fi
+
+      - name: Check a second install hits the tool cache
+        uses: ./setup
+        with:
+          version: ${{ matrix.version }}
+
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run the example pipeline
+        uses: ./
+        with:
+          pipeline: examples/main.snek
+
+      # The second run should find everything in the actions cache the first one wrote.
+      - name: Run it again
+        uses: ./
+        with:
+          pipeline: examples/main.snek
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Shellcheck the installer
+        run: shellcheck scripts/install.sh
+      - name: Lint the workflows
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12

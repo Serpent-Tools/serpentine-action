@@ -1,0 +1,24 @@
+name: Move the major tag
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+concurrency:
+  group: major-tag
+  cancel-in-progress: false
+
+jobs:
+  major-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Users pin `@v1`, so it has to follow every v1.x.y release.
+      - name: Point the major tag at this release
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          major=${TAG%%.*}
+          git tag --force "$major"
+          git push --force origin "refs/tags/$major"

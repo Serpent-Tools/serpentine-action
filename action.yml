@@ -1,0 +1,104 @@
+name: Run serpentine
+description: Download serpentine and run a pipeline.
+author: Serpent-Tools
+branding:
+  icon: play
+  color: green
+
+inputs:
+  version:
+    description: >-
+      The serpentine release to install, with or without a leading `v`.
+      `latest` resolves to the most recent release.
+    required: false
+    default: latest
+  pipeline:
+    description: The pipeline file to run. Defaults to serpentine's own default, `./main.snek`.
+    required: false
+    default: ''
+  entry-point:
+    description: The exported label to execute. Defaults to serpentine's own default, `DEFAULT`.
+    required: false
+    default: ''
+  jobs:
+    description: >-
+      How many `Exec` nodes may run at once. 1 keeps `--output auto` on the GitHub renderer,
+      which folds every command into its own log group.
+    required: false
+    default: '1'
+  cache-backend:
+    description: Where to cache, one of `auto`, `fs`, `github` or `none`.
+    required: false
+    default: github
+  cache-folder:
+    description: >-
+      Where the `fs` backend stores its cache. Serpentine rejects this unless `cache-backend` is
+      `auto` or `fs`; restore and save the folder yourself with `actions/cache`.
+    required: false
+    default: ''
+  working-directory:
+    description: The directory to run serpentine from.
+    required: false
+    default: .
+  args:
+    description: >-
+      Extra arguments appended to the command, split like a shell splits a command line.
+      An escape hatch for flags this action does not expose yet.
+    required: false
+    default: ''
+
+outputs:
+  version:
+    description: The version that was installed, without a leading `v`.
+    value: ${{ steps.install.outputs.version }}
+  binary:
+    description: The full path of the serpentine binary.
+    value: ${{ steps.install.outputs.binary }}
+
+runs:
+  using: composite
+  steps:
+    - name: Expose the actions cache credentials
+      # The runner injects these into JS actions only, so `run:` steps need them re-exported.
+      if: inputs.cache-backend == 'github' || inputs.cache-backend == 'auto'
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      with:
+        script: |
+          core.setSecret(process.env.ACTIONS_RUNTIME_TOKEN);
+          core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL);
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN);
+
+    - name: Install serpentine
+      id: install
+      shell: bash
+      env:
+        SERPENTINE_VERSION: ${{ inputs.version }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/install.sh"
+
+    - name: Run the pipeline
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SERPENTINE: ${{ steps.install.outputs.binary }}
+        PIPELINE: ${{ inputs.pipeline }}
+        ENTRY_POINT: ${{ inputs.entry-point }}
+        JOBS: ${{ inputs.jobs }}
+        CACHE_BACKEND: ${{ inputs.cache-backend }}
+        CACHE_FOLDER: ${{ inputs.cache-folder }}
+        EXTRA_ARGS: ${{ inputs.args }}
+      run: |
+        # Runners never share a filesystem, so a cache is only worth writing if it is portable.
+        args=(run --standalone-cache)
+        if [[ -n $PIPELINE ]]; then args+=(--pipeline "$PIPELINE"); fi
+        if [[ -n $ENTRY_POINT ]]; then args+=(--entry-point "$ENTRY_POINT"); fi
+        if [[ -n $JOBS ]]; then args+=(--jobs "$JOBS"); fi
+        if [[ -n $CACHE_BACKEND ]]; then args+=(--cache-backend "$CACHE_BACKEND"); fi
+        if [[ -n $CACHE_FOLDER ]]; then args+=(--cache-folder "$CACHE_FOLDER"); fi
+        if [[ -n $EXTRA_ARGS ]]; then
+            # xargs splits the way a shell would, so quoted arguments survive.
+            mapfile -t extra < <(xargs -n1 <<< "$EXTRA_ARGS")
+            args+=("${extra[@]}")
+        fi
+
+        echo "::debug::$SERPENTINE ${args[*]}"
+        "$SERPENTINE" "${args[@]}"

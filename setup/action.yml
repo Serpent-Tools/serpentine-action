@@ -1,0 +1,35 @@
+name: Setup serpentine
+description: Download the serpentine binary and add it to PATH.
+author: Serpent-Tools
+branding:
+  icon: download
+  color: green
+
+inputs:
+  version:
+    description: >-
+      The serpentine release to install, with or without a leading `v`.
+      `latest` resolves to the most recent release.
+    required: false
+    default: latest
+
+outputs:
+  version:
+    description: The version that was installed, without a leading `v`.
+    value: ${{ steps.install.outputs.version }}
+  path:
+    description: The directory that was added to PATH.
+    value: ${{ steps.install.outputs.path }}
+  binary:
+    description: The full path of the serpentine binary.
+    value: ${{ steps.install.outputs.binary }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install serpentine
+      id: install
+      shell: bash
+      env:
+        SERPENTINE_VERSION: ${{ inputs.version }}
+      run: bash "$GITHUB_ACTION_PATH/../scripts/install.sh"
