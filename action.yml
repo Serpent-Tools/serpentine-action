@@ -21,11 +21,9 @@ inputs:
     required: false
     default: ''
   jobs:
-    description: >-
-      How many `Exec` nodes may run at once. 1 keeps `--output auto` on the GitHub renderer,
-      which folds every command into its own log group.
+    description: How many `Exec` nodes may run at once. Defaults to serpentine's own default, `2`.
     required: false
-    default: '1'
+    default: ''
   cache-backend:
     description: Where to cache, one of `auto`, `fs`, `github` or `none`.
     required: false
