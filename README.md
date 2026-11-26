@@ -39,15 +39,11 @@ at another pipeline or entry point to split a job:
 | `version` | `latest` | The release to install, with or without a leading `v`. |
 | `pipeline` | `./main.snek` | `--pipeline`, the pipeline file to run. |
 | `entry-point` | `DEFAULT` | `--entry-point`, the exported label to execute. |
-| `jobs` | `1` | `--jobs`, how many `Exec` nodes may run at once. |
+| `jobs` | `2` | `--jobs`, how many `Exec` nodes may run at once. |
 | `cache-backend` | `github` | `--cache-backend`: `auto`, `fs`, `github` or `none`. |
 | `cache-folder` | — | `--cache-folder`, where the `fs` backend stores its cache. |
 | `working-directory` | `.` | The directory to run serpentine from. |
 | `args` | — | Extra arguments, split the way a shell splits a command line. |
-
-`jobs` defaults to 1 rather than serpentine's 2, which keeps `--output auto` on the GitHub renderer
-and folds each command into its own collapsible log group. Raise it once your caches are warm, at
-the cost of that grouping.
 
 ### Outputs
 
